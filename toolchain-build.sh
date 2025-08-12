@@ -163,7 +163,7 @@ stage_cmake() {
     tar -xf "${SRC_DIR}/cmake-${CMAKE_VER}.tar.gz" -C "${SRC_DIR}"
   fi
   cd "${CMAKE_SRC}"
-  ./bootstrap --prefix="${LFS}" --paralled="${JOBS}"
+  ./bootstrap --prefix="${LFS}" --parallel="${JOBS}"
   make -j"${JOBS}"
   sudo make install
 }
