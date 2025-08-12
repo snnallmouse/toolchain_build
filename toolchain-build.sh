@@ -8,6 +8,7 @@ BINUTILS_VER=2.38
 GCC_VER=11.4.0
 GLIBC_VER=2.29
 LINUX_VER=5.4.266
+CMAKE_VER=3.22.2
 JOBS=$(nproc)
 ARCH=x86   # Architecture for kernel headers installation
 # ===============================================
@@ -19,6 +20,7 @@ BINUTILS_SRC="${SRC_DIR}/binutils-${BINUTILS_VER}"
 GCC_SRC="${SRC_DIR}/gcc-${GCC_VER}"
 GLIBC_SRC="${SRC_DIR}/glibc-${GLIBC_VER}"
 LINUX_SRC="${SRC_DIR}/linux-${LINUX_VER}"
+CMAKE_SRC="${SRC_DIR}/cmake-${CMAKE_VER}"
 
 BINUTILS_BUILD="${BUILD_DIR}/binutils"
 GCC_FIRST_BUILD="${BUILD_DIR}/gcc-first"
@@ -38,7 +40,6 @@ clean_environment() {
   if [ -d "${LFS}" ]; then
     sudo rm -rf "${LFS:?}"/*
   fi
-  # Ensure build subdirectories exist again
   mkdir -p "${BINUTILS_BUILD}" "${GCC_FIRST_BUILD}" "${GLIBC_BUILD}" "${GCC_SECOND_BUILD}"
 }
 
@@ -94,7 +95,6 @@ stage_glibc() {
   log "Stage 4: Building glibc"
   OLD_PATH="${PATH}"
   
-  # Export cross-toolchain variables
   export CC="${LFS_TGT}-gcc"
   export CXX="${LFS_TGT}-g++"
   export AR="${LFS_TGT}-ar"
@@ -119,7 +119,6 @@ stage_glibc() {
   make -j"${JOBS}"
   sudo make install_root="${LFS}" install
 
-  # Restore PATH and unset env vars
   export PATH="${OLD_PATH}"
   unset_tool_env
 }
@@ -156,6 +155,19 @@ stage_gcc_second() {
   sudo make install
 }
 
+# Stage 6: Build and install CMake
+stage_cmake() {
+  log "Stage 6: Building CMake ${CMAKE_VER}"
+  if [ ! -d "${CMAKE_SRC}" ]; then
+    log "Extracting cmake-${CMAKE_VER}.tar.gz..."
+    tar -xf "${SRC_DIR}/cmake-${CMAKE_VER}.tar.gz" -C "${SRC_DIR}"
+  fi
+  cd "${CMAKE_SRC}"
+  ./bootstrap --prefix="${LFS}" --paralled="${JOBS}"
+  make -j"${JOBS}"
+  sudo make install
+}
+
 main() {
   clean_environment
   stage_binutils
@@ -164,7 +176,8 @@ main() {
   stage_glibc
   ensure_usr_lib_symlink
   stage_gcc_second
-  log "All stages completed. Toolchain installed in ${LFS}"
+  stage_cmake
+  log "All stages completed. Toolchain + CMake installed in ${LFS}"
 }
 
 main "$@"
