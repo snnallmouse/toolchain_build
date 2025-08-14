@@ -6,7 +6,7 @@ LFS=/toolchain
 LFS_TGT=x86_64-infra-linux-gnu
 BINUTILS_VER=2.38
 GCC_VER=11.4.0
-GLIBC_VER=2.29
+GLIBC_VER=2.27
 LINUX_VER=5.4.266
 CMAKE_VER=3.22.2
 JOBS=$(nproc)
@@ -95,7 +95,7 @@ stage_glibc() {
   log "Stage 4: Building glibc"
   OLD_PATH="${PATH}"
   
-  export CC="${LFS_TGT}-gcc"
+  export CC="${LFS_TGT}-gcc -fcommon"
   export CXX="${LFS_TGT}-g++"
   export AR="${LFS_TGT}-ar"
   export RANLIB="${LFS_TGT}-ranlib"
@@ -115,11 +115,10 @@ stage_glibc() {
     --with-headers="${LFS}/usr/include" \
     --enable-kernel=4.10.0 \
     --disable-profile \
-    --disable-werror
+    --disable-werror \
+    --disable-cet
   make -j"${JOBS}"
   sudo make install_root="${LFS}" install
-
-  export PATH="${OLD_PATH}"
   unset_tool_env
 }
 
@@ -149,21 +148,7 @@ stage_gcc_second() {
     --with-sysroot="${LFS}" \
     --with-build-sysroot="${LFS}" \
     --enable-lto \
-    --enable-gold=yes \
-    --with-lib-path=/usr/lib64:/lib64:/usr/lib:/lib
-  make -j"${JOBS}"
-  sudo make install
-}
-
-# Stage 6: Build and install CMake
-stage_cmake() {
-  log "Stage 6: Building CMake ${CMAKE_VER}"
-  if [ ! -d "${CMAKE_SRC}" ]; then
-    log "Extracting cmake-${CMAKE_VER}.tar.gz..."
-    tar -xf "${SRC_DIR}/cmake-${CMAKE_VER}.tar.gz" -C "${SRC_DIR}"
-  fi
-  cd "${CMAKE_SRC}"
-  ./bootstrap --prefix="${LFS}" --parallel="${JOBS}"
+    --enable-gold=yes
   make -j"${JOBS}"
   sudo make install
 }
@@ -176,7 +161,6 @@ main() {
   stage_glibc
   ensure_usr_lib_symlink
   stage_gcc_second
-  stage_cmake
   log "All stages completed. Toolchain + CMake installed in ${LFS}"
 }
 
