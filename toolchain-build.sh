@@ -9,6 +9,8 @@ GCC_VER=11.4.0
 GLIBC_VER=2.27
 LINUX_VER=5.4.266
 CMAKE_VER=3.22.2
+GDB_VER=12.1
+GMP_VER=6.3.0
 JOBS=$(nproc)
 ARCH=x86   # Architecture for kernel headers installation
 # ===============================================
@@ -20,7 +22,6 @@ BINUTILS_SRC="${SRC_DIR}/binutils-${BINUTILS_VER}"
 GCC_SRC="${SRC_DIR}/gcc-${GCC_VER}"
 GLIBC_SRC="${SRC_DIR}/glibc-${GLIBC_VER}"
 LINUX_SRC="${SRC_DIR}/linux-${LINUX_VER}"
-CMAKE_SRC="${SRC_DIR}/cmake-${CMAKE_VER}"
 
 BINUTILS_BUILD="${BUILD_DIR}/binutils"
 GCC_FIRST_BUILD="${BUILD_DIR}/gcc-first"
@@ -153,6 +154,59 @@ stage_gcc_second() {
   sudo make install
 }
 
+
+# Stage 6: Build GMP (for GDB)
+stage_gmp() {
+  log "Stage 6: Building GMP"
+  mkdir -p "${BUILD_DIR}/gmp"
+  cd "${SRC_DIR}/gmp-${GMP_VER}"
+
+  export PATH="${LFS}/bin:${PATH}"
+  export CC="${LFS}/bin/${LFS_TGT}-gcc"
+  export CXX="${LFS}/bin/${LFS_TGT}-g++"
+  export AR="${LFS}/bin/${LFS_TGT}-ar"
+  export RANLIB="${LFS}/bin/${LFS_TGT}-ranlib"
+  export LD="${LFS}/bin/${LFS_TGT}-ld"
+  export PKG_CONFIG_PATH="${LFS}/lib64/pkgconfig:${LFS}/usr/lib64/pkgconfig"
+
+  ./configure --prefix="${LFS}" --enable-cxx --disable-shared
+  make -j"${JOBS}"
+  sudo make install
+}
+
+# Stage 7: Build GDB (native, host==target)
+stage_gdb() {
+  log "Stage 7: Building GDB (native)"
+  mkdir -p "${BUILD_DIR}/gdb"
+  cd "${BUILD_DIR}/gdb"
+
+  export PATH="${LFS}/bin:${PATH}"
+  export CC="${LFS}/bin/${LFS_TGT}-gcc"
+  export CXX="${LFS}/bin/${LFS_TGT}-g++"
+  export AR="${LFS}/bin/${LFS_TGT}-ar"
+  export RANLIB="${LFS}/bin/${LFS_TGT}-ranlib"
+  export LD="${LFS}/bin/${LFS_TGT}-ld"
+  export PKG_CONFIG_PATH="${LFS}/lib64/pkgconfig:${LFS}/usr/lib64/pkgconfig"
+  export LDFLAGS="-Wl,-rpath=${LFS}/lib64 -Wl,--dynamic-linker=${LFS}/lib64/ld-linux-x86-64.so.2"
+
+  "${SRC_DIR}/gdb-${GDB_VER}/configure" \
+    --prefix="${LFS}" \
+    --host="${LFS_TGT}" \
+    --target="${LFS_TGT}" \
+    --disable-nls \
+    --without-zlib \
+    --without-expat \
+    --without-lzma \
+    --with-python=no \
+    --disable-sim \
+    --disable-gdbmi
+
+  make -j"${JOBS}"
+  sudo make install
+}
+
+# ========== main ==========
+
 main() {
   clean_environment
   stage_binutils
@@ -161,8 +215,9 @@ main() {
   stage_glibc
   ensure_usr_lib_symlink
   stage_gcc_second
-  log "All stages completed. Toolchain + CMake installed in ${LFS}"
+  stage_gmp
+  stage_gdb
+  log "All stages completed. Full Toolchain + GDB installed in ${LFS}"
 }
 
 main "$@"
-
