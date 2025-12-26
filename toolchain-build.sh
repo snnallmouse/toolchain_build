@@ -205,6 +205,22 @@ stage_gdb() {
   sudo make install
 }
 
+# TODO: write steps of Stage 8: Build libnuma-2.0.19
+#   757  export CC=/toolchain/bin/x86_64-infra-linux-gnu-gcc
+#   758  export CXX=/toolchain/bin/x86_64-infra-linux-gnu-g++
+#   759  export LFS=/toolchain
+#   760  export LFS_TGT=x86_64-infra-linux-gnu
+#   761  export PATH="${LFS}/bin:${PATH}"
+#   763  export AR="${LFS}/bin/${LFS_TGT}-ar"
+#   767  export RANLIB="${LFS}/bin/${LFS_TGT}-ranlib"
+#   768  export LD="${LFS}/bin/${LFS_TGT}-ld"
+#   769  export PKG_CONFIG_PATH="${LFS}/lib64/pkgconfig:${LFS}/usr/lib64/pkgconfig"
+#   770  export LDFLAGS="-Wl,-rpath=${LFS}/lib64 -Wl,--dynamic-linker=${LFS}/lib64/ld-linux-x86-64.so.2"
+#        export NM="${LFS_TGT}-nm"
+# make 
+# make install 
+# rm -rf /toolchain/bin/{numademo+numactl+numastat+numademo+memhog
+
 # ========== main ==========
 
 main() {
