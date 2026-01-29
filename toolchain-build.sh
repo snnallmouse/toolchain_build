@@ -205,21 +205,69 @@ stage_gdb() {
   sudo make install
 }
 
-# TODO: write steps of Stage 8: Build libnuma-2.0.19
-#   757  export CC=/toolchain/bin/x86_64-infra-linux-gnu-gcc
-#   758  export CXX=/toolchain/bin/x86_64-infra-linux-gnu-g++
-#   759  export LFS=/toolchain
-#   760  export LFS_TGT=x86_64-infra-linux-gnu
-#   761  export PATH="${LFS}/bin:${PATH}"
-#   763  export AR="${LFS}/bin/${LFS_TGT}-ar"
-#   767  export RANLIB="${LFS}/bin/${LFS_TGT}-ranlib"
-#   768  export LD="${LFS}/bin/${LFS_TGT}-ld"
-#   769  export PKG_CONFIG_PATH="${LFS}/lib64/pkgconfig:${LFS}/usr/lib64/pkgconfig"
-#   770  export LDFLAGS="-Wl,-rpath=${LFS}/lib64 -Wl,--dynamic-linker=${LFS}/lib64/ld-linux-x86-64.so.2"
-#        export NM="${LFS_TGT}-nm"
-# make 
-# make install 
-# rm -rf /toolchain/bin/{numademo+numactl+numastat+numademo+memhog
+# Stage 8: Build & Install libnuma-2.0.19
+stage_libnuma() {
+  log "Stage 8: Building libnuma-${LIBNUMA_VER} (runtime only)"
+
+  local LIBNUMA_VER=2.0.19
+  local LIBNUMA_TAR="${SRC_DIR}/numactl-${LIBNUMA_VER}.tar.gz"
+  local LIBNUMA_SRC="${BUILD_DIR}/numactl-${LIBNUMA_VER}"
+
+  # ---------- First pass: prefix = ${LFS}/usr ----------
+  log "libnuma pass 1: prefix=${LFS}/usr"
+
+  rm -rf "${LIBNUMA_SRC}"
+  tar -xf "${LIBNUMA_TAR}" -C "${BUILD_DIR}"
+  cd "${LIBNUMA_SRC}"
+
+  export PATH="${LFS}/bin:${PATH}"
+  export CC="${LFS}/bin/${LFS_TGT}-gcc"
+  export CXX="${LFS}/bin/${LFS_TGT}-g++"
+  export AR="${LFS}/bin/${LFS_TGT}-ar"
+  export RANLIB="${LFS}/bin/${LFS_TGT}-ranlib"
+  export NM="${LFS}/bin/${LFS_TGT}-nm"
+  export LD="${LFS}/bin/${LFS_TGT}-ld"
+  export CFLAGS="-O2 -fPIC"
+  export CXXFLAGS="-O2 -fPIC"
+
+  ./configure \
+    --prefix="${LFS}/usr" \
+    --enable-static \
+    --enable-shared \
+    --with-pic
+
+  make -j"${JOBS}"
+  sudo make install
+
+  # Remove tools (match your rm -rf numa* memhog mig*)
+  rm -rf "${LFS}/usr/bin"/numa*
+  rm -rf "${LFS}/usr/bin"/memhog
+  rm -rf "${LFS}/usr/bin"/mig*
+
+  # ---------- Second pass: prefix = ${LFS} ----------
+  log "libnuma pass 2: prefix=${LFS}"
+
+  rm -rf "${LIBNUMA_SRC}"
+  tar -xf "${LIBNUMA_TAR}" -C "${BUILD_DIR}"
+  cd "${LIBNUMA_SRC}"
+
+  ./configure \
+    --prefix="${LFS}" \
+    --enable-static \
+    --enable-shared \
+    --with-pic
+
+  make -j"${JOBS}"
+  sudo make install
+
+  # Remove tools again (match your second cleanup)
+  rm -rf "${LFS}/bin"/numa*
+  rm -rf "${LFS}/bin"/memhog
+  rm -rf "${LFS}/bin"/mig*
+
+  log "libnuma-${LIBNUMA_VER} installed (libraries only)"
+}
+
 
 # ========== main ==========
 
@@ -233,6 +281,7 @@ main() {
   stage_gcc_second
   stage_gmp
   stage_gdb
+  stage_libnuma
   log "All stages completed. Full Toolchain + GDB installed in ${LFS}"
 }
 
